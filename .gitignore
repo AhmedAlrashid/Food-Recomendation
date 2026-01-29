@@ -1,0 +1,16 @@
+# Ignore Yelp raw dataset folder
+BE/data_extraction/Yelp-JSON/
+
+# Ignore extracted JSONL files
+*.jsonl
+
+# Ignore indexes folder inside data_extraction
+BE/data_extraction/index/
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+
+# Ignore dataset tar and PDFs (if present)
+*.tar
+*.pdf
