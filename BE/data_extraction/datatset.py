@@ -28,7 +28,6 @@ def build_reviews_indexes():
             # Gets all the categories related to the business
             try:
                 categories = business_index[bid]
-                print(categories)
             except KeyError:
                 pass
 
@@ -43,8 +42,15 @@ def build_reviews_indexes():
                         else:
                             category_reviews_index[category][uid]+=1
 
+    sorted_index = {}
+
+    # Sort the dict before writing json to file
+    for category, user_counts in category_reviews_index.items():
+        sorted_items = sorted(user_counts.items(), key=lambda item: item[1], reverse=True)
+        sorted_index[category] = dict(sorted_items)
+
     if category_reviews_index:
-        write_category_review_index(category_reviews_index)
+        write_category_review_index(sorted_index)
             
             
 def build_indexes():
