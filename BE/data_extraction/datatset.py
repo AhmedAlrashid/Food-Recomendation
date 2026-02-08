@@ -1,16 +1,57 @@
 import json
+from os import getcwd
 from buisiness_cleaning import FOOD_CATEGORIES
 
 # ---------------- CONFIG ----------------
-INPUT_PATH = r"BE\data_extraction\yelp_business_food_only.jsonl"
-OUTPUT_DIR = r"BE\data_extraction"
+INPUT_PATH = "BE/data_extraction/yelp_business_food_only.jsonl"
+INPUT_PATH_REVIEWS = "BE/data_extraction/Yelp-JSON/yelp_academic_dataset_review.json" 
+INPUT_PATH_BUSINESS_INDEX = "BE/data_extraction/index/complete_business_index.json"
+OUTPUT_DIR = "BE/data_extraction/index"
 BUFFER_SIZE = 15_000
 # ----------------------------------------
 
+def build_reviews_indexes():
+    category_reviews_index = {} # Category -> {uid: # of reviews, ...}
+    business_index = {} # Loaded index with bid -> categories
 
+    with open(INPUT_PATH_BUSINESS_INDEX, "r", encoding="utf-8") as file:
+        business_index = json.load(file)
+
+    with open(INPUT_PATH_REVIEWS, "r", encoding="utf-8") as file:
+        for line in file:
+            review = json.loads(line)
+            
+            # Get values from review object
+            uid = review.get("user_id")
+            bid = review.get("business_id")
+            star_rating = review.get("stars")
+            # Gets all the categories related to the business
+            try:
+                categories = business_index[bid]
+                print(categories)
+            except KeyError:
+                pass
+
+            if (star_rating >= 4.0):
+                for category in categories:
+                    # Creates new category if it doesn't exist in the dict
+                    if category not in category_reviews_index.keys():
+                        category_reviews_index[category] = {uid: 1}
+                    else: 
+                        if uid not in category_reviews_index[category].keys():
+                            category_reviews_index[category][uid] = 1
+                        else:
+                            category_reviews_index[category][uid]+=1
+
+    if category_reviews_index:
+        write_category_review_index(category_reviews_index)
+            
+            
 def build_indexes():
+    complete_business_index = {}
     category_index = {}   # category -> [bid(city,state), ...]
     business_index = {}   # bid -> [category, ...]
+
 
     cat_file_id = 0
     biz_file_id = 0
@@ -41,6 +82,8 @@ def build_indexes():
             # ---------- BUSINESS → CATEGORIES ----------
             business_index[bid] = categories
 
+            complete_business_index[bid] = categories
+
             # ---------- CATEGORY → BUSINESSES ----------
             for cat in categories:
                 if cat not in category_index:
@@ -66,11 +109,14 @@ def build_indexes():
     if business_index:
         write_business_index(business_index, biz_file_id)
 
+    if complete_business_index:
+        write_complete_business_index(complete_business_index)
+
 
 # ---------------- WRITERS ----------------
 
 def write_category_index(index, file_id):
-    path = f"{OUTPUT_DIR}/index/category_index_{file_id:03d}.txt"
+    path = f"{OUTPUT_DIR}/category_index_{file_id:03d}.txt"
 
     with open(path, "w", encoding="utf-8") as out:
         for category, businesses in index.items():
@@ -79,14 +125,27 @@ def write_category_index(index, file_id):
 
 
 def write_business_index(index, file_id):
-    path = f"{OUTPUT_DIR}/index/business_index_{file_id:03d}.txt"
+    path = f"{OUTPUT_DIR}/business_index_{file_id:03d}.txt"
 
     with open(path, "w", encoding="utf-8") as out:
         for bid, categories in index.items():
             line = bid + "|" + ",".join(categories)
             out.write(line + "\n")
 
+def write_category_review_index(index):
+    path = f"{OUTPUT_DIR}/category_review_index.json"
+
+    with open(path, 'w', encoding='utf-8') as out:
+        json.dump(index, out, indent=4)    
+
+def write_complete_business_index(index):
+    path = f"{OUTPUT_DIR}/complete_business_index.json"
+
+    with open(path, 'w', encoding='utf-8') as out:
+        json.dump(index, out, indent=4)
+
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     build_indexes()
+    build_reviews_indexes()
