@@ -3,10 +3,10 @@ from os import getcwd
 from buisiness_cleaning import FOOD_CATEGORIES
 
 # ---------------- CONFIG ----------------
-INPUT_PATH = "BE/data_extraction/yelp_business_food_only.jsonl"
+INPUT_PATH = r"BE\data_extraction\yelp_business_food_only.jsonl"
 INPUT_PATH_REVIEWS = "BE/data_extraction/Yelp-JSON/yelp_academic_dataset_review.json" 
 INPUT_PATH_BUSINESS_INDEX = "BE/data_extraction/index/complete_business_index.json"
-OUTPUT_DIR = "BE/data_extraction/index"
+OUTPUT_DIR = r"BE\data_extraction"
 BUFFER_SIZE = 15_000
 # ----------------------------------------
 
@@ -122,7 +122,7 @@ def build_indexes():
 # ---------------- WRITERS ----------------
 
 def write_category_index(index, file_id):
-    path = f"{OUTPUT_DIR}/category_index_{file_id:03d}.txt"
+    path = f"{OUTPUT_DIR}/index/category_index_{file_id:03d}.txt"
 
     with open(path, "w", encoding="utf-8") as out:
         for category, businesses in index.items():
@@ -131,7 +131,7 @@ def write_category_index(index, file_id):
 
 
 def write_business_index(index, file_id):
-    path = f"{OUTPUT_DIR}/business_index_{file_id:03d}.txt"
+    path = f"{OUTPUT_DIR}/index/business_index_{file_id:03d}.txt"
 
     with open(path, "w", encoding="utf-8") as out:
         for bid, categories in index.items():
