@@ -48,7 +48,6 @@ def places(
     ):
     
     # Below was extra I tried if we need strict location filtering
-
     # use_nearby_search = lat is not None and lng is not None
 
     # if use_nearby_search: #doesn't allow query
@@ -66,6 +65,9 @@ def places(
     #         "rankby": rankby, 
     #         "pagetoken": page_token,
     #         }
+    
+    if rankby not in ("prominence", "distance"):
+        raise HTTPException(400, detail="rankby must be 'prominence' or 'distance'")
 
 
     try:
@@ -102,7 +104,9 @@ def places(
     results = data.get("results", [])
 
     return {
-        "results": results[:limit]
+        "results": results[:limit],
+        "next_page_token": data.get("next_page_token"),
+        "status": data.get("status"),
     }
 
 #python -m uvicorn main:app --reload
