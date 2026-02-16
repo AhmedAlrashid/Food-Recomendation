@@ -23,6 +23,8 @@ from buisiness_cleaning import FOOD_CATEGORIES
 class RestaurantRecommendationSystem:
     def __init__(self):
         self.business_index = {}
+        self.business_names = {}
+        self.category = {}
         self.category_review_index = {}
         self.yelp_user_vectors = {}
         self.load_indexes()
@@ -30,7 +32,7 @@ class RestaurantRecommendationSystem:
     def load_indexes(self):
         """Load the business and category review indexes from the data files."""
         # Business Index Path: business_id -> [categories]
-        business_index_path = os.path.join("..", "data_extraction", "index", "complete_business_index.json")
+        business_index_path = os.path.join("..", "data_extraction", "complete_business_index.json")
         
         # Category Review Index Path: category -> {user_id: review_count}
         category_review_path = os.path.join("..", "data_extraction", "category_reviews_index.json")
@@ -70,23 +72,49 @@ class RestaurantRecommendationSystem:
         categories_list = list(FOOD_CATEGORIES)
         
         mock_businesses = {}
-        business_names = [
-            "Tony's Pizza Palace", "Sakura Sushi", "El Mariachi Grill", "Burger Heaven",
-            "Golden Dragon Chinese", "Pasta Bella", "Spice Route Indian", "BBQ Kingdom",
-            "The French Bistro", "Taco Fiesta", "Noodle House", "Steakhouse Prime",
-            "Mediterranean Delight", "Coffee Corner Cafe", "Sweet Treats Bakery",
-            "Ocean's Bounty Seafood", "Punjab Palace", "Little Italy", "Seoul Kitchen",
-            "Bangkok Street Food", "German Beer Garden", "Cuban Flavors", "Vegan Garden",
-            "The Breakfast Club", "Midnight Diner", "Farm Fresh Market", "Artisan Chocolates",
-            "Ramen-Ya", "Falafel King", "Texas BBQ Pit", "Greek Taverna"
+        
+        # Create businesses with specific category combinations that align with user preferences
+        business_data = [
+            ("Tony's Pizza Palace", ["Pizza", "Italian", "Restaurants"]),
+            ("Sakura Sushi", ["Japanese", "Sushi Bars", "Restaurants"]),
+            ("El Mariachi Grill", ["Mexican", "Restaurants"]),
+            ("Burger Heaven", ["Burgers", "American (Traditional)", "Fast Food"]),
+            ("Golden Dragon Chinese", ["Chinese", "Restaurants"]),
+            ("Pasta Bella", ["Italian", "Restaurants"]),
+            ("Spice Route Indian", ["Indian", "Restaurants"]),
+            ("BBQ Kingdom", ["Barbeque", "American (Traditional)", "Restaurants"]),
+            ("The French Bistro", ["French", "Restaurants"]),
+            ("Taco Fiesta", ["Mexican", "Tacos", "Restaurants"]),
+            ("Noodle House", ["Ramen", "Japanese", "Restaurants"]),
+            ("Steakhouse Prime", ["Steakhouses", "American (Traditional)", "Restaurants"]),
+            ("Mediterranean Delight", ["Mediterranean", "Greek", "Restaurants"]),
+            ("Coffee Corner Cafe", ["Cafes", "Coffee & Tea"]),
+            ("Sweet Treats Bakery", ["Bakeries", "Desserts"]),
+            ("Ocean's Bounty Seafood", ["Seafood", "Restaurants"]),
+            ("Punjab Palace", ["Indian", "Restaurants"]),
+            ("Little Italy", ["Italian", "Pizza", "Restaurants"]),
+            ("Seoul Kitchen", ["Korean", "Restaurants"]),
+            ("Bangkok Street Food", ["Thai", "Vietnamese", "Restaurants"]),
+            ("German Beer Garden", ["German", "Bars", "Restaurants"]),
+            ("Cuban Flavors", ["Caribbean", "Cuban", "Restaurants"]),
+            ("Vegan Garden", ["Vegan", "Vegetarian", "Restaurants"]),
+            ("The Breakfast Club", ["Breakfast & Brunch", "American (Traditional)"]),
+            ("Midnight Diner", ["American (New)", "Comfort Food", "Restaurants"]),
+            ("Artisan Chocolates", ["Desserts", "Patisserie/Cake Shop"]),
+            ("Ramen-Ya", ["Ramen", "Japanese", "Restaurants"]),
+            ("Falafel King", ["Middle Eastern", "Falafel", "Restaurants"]),
+            ("Texas BBQ Pit", ["Barbeque", "American (Traditional)", "Restaurants"]),
+            ("Greek Taverna", ["Greek", "Mediterranean", "Restaurants"]),
+            ("Hot Pot Paradise", ["Hot Pot", "Chinese", "Restaurants"])
         ]
         
-        for i, name in enumerate(business_names):
+        for i, (name, categories) in enumerate(business_data):
             bid = f"business_{i+1:03d}"
-            # Each business gets 1-4 random categories
-            num_cats = random.randint(1, 4)
-            business_categories = random.sample(categories_list, num_cats)
-            mock_businesses[bid] = business_categories
+            # Store the business name mapping
+            self.business_names[bid] = name
+            # Filter categories to only include those in FOOD_CATEGORIES
+            valid_categories = [cat for cat in categories if cat in FOOD_CATEGORIES]
+            mock_businesses[bid] = valid_categories if valid_categories else ["Restaurants"]
             
         return mock_businesses
 
@@ -96,15 +124,26 @@ class RestaurantRecommendationSystem:
         
         mock_index = {}
         
-        # Create mock users for each category
-        for category in list(FOOD_CATEGORIES)[:20]:  # Use first 20 categories
-            mock_index[category] = {}
-            # Each category has 5-15 users with varying review counts
-            num_users = random.randint(5, 15)
-            for i in range(num_users):
-                user_id = f"yelp_user_{category.lower().replace(' ', '_')}_{i+1:02d}"
-                review_count = random.randint(1, 25)  # 1-25 reviews per category
-                mock_index[category][user_id] = review_count
+        # Focus on categories that appear in user preferences
+        important_categories = [
+            "Italian", "Pizza", "Comfort Food", "American (Traditional)", "American (New)",
+            "Japanese", "Chinese", "Thai", "Korean", "Sushi Bars", "Ramen", "Vietnamese",
+            "Vegetarian", "Vegan", "Mediterranean", "Greek", "Juice Bars & Smoothies",
+            "Mexican", "Indian", "Middle Eastern", "Caribbean", "Hot Pot", "Tacos",
+            "Restaurants", "Food", "Cafes", "Burgers", "Seafood", "Steakhouses",
+            "French", "Barbeque", "Bars", "German", "Cuban", "Falafel", "Desserts"
+        ]
+        
+        # Create mock users for each important category
+        for category in important_categories:
+            if category in FOOD_CATEGORIES:  # Make sure it's a valid category 
+                mock_index[category] = {}
+                # Each category has 8-25 users with varying review counts
+                num_users = random.randint(8, 25)
+                for i in range(num_users):
+                    user_id = f"yelp_user_{category.lower().replace(' ', '_').replace('/', '_').replace('&', 'and')}_{i+1:02d}"
+                    review_count = random.randint(3, 30)  # 3-30 reviews per category
+                    mock_index[category][user_id] = review_count
                 
         return mock_index
 
@@ -231,8 +270,8 @@ class RestaurantRecommendationSystem:
             print("-" * 50)
             
             for rank, (bid, score, categories) in enumerate(recommendations, 1):
-                # Create a display name from business ID
-                display_name = bid.replace('business_', 'Restaurant #')
+                # Use actual restaurant name if available, otherwise fallback to generic name
+                display_name = self.business_names.get(bid, bid.replace('business_', 'Restaurant #'))
                 print(f"{rank:2d}. {display_name}")
                 print(f"    Score: {score:.4f}")
                 print(f"    Categories: {', '.join(categories[:3])}{'...' if len(categories) > 3 else ''}")
