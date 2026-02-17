@@ -23,6 +23,7 @@ from buisiness_cleaning import FOOD_CATEGORIES
 class RestaurantRecommendationSystem:
     def __init__(self):
         self.business_index = {}
+        self.business_names = {}
         self.category_review_index = {}
         self.yelp_user_vectors = {}
         self.load_indexes()
@@ -30,83 +31,66 @@ class RestaurantRecommendationSystem:
     def load_indexes(self):
         """Load the business and category review indexes from the data files."""
         # Business Index Path: business_id -> [categories]
-        business_index_path = os.path.join("..", "data_extraction", "index", "complete_business_index.json")
+        business_index_path = os.path.join("..", "data_extraction", "complete_business_index.json")
         
         # Category Review Index Path: category -> {user_id: review_count}
-        category_review_path = os.path.join("..", "data_extraction", "category_reviews_index.json")
+        category_review_path = os.path.join("..", "data_extraction", "category_review_index.json")
         
         print(f"Expected Business Index Path: {business_index_path}")
         print(f"Expected Category Review Index Path: {category_review_path}")
         
+        # Load business index (must exist)
         try:
             with open(business_index_path, 'r', encoding='utf-8') as f:
                 self.business_index = json.load(f)
             print(f"Loaded business index with {len(self.business_index)} businesses")
         except FileNotFoundError:
             print(f"Business index not found at {business_index_path}")
-            print("   You'll need to build this index first using your data extraction pipeline")
-            # Create mock data for demonstration
-            self.business_index = self._create_mock_business_index()
+            print("   Run 'python BE/data_extraction/datatset.py' to build indexes first")
+            raise FileNotFoundError(f"Required business index file not found: {business_index_path}")
             
+        # Load category review index (must exist for recommendations)
         try:
             with open(category_review_path, 'r', encoding='utf-8') as f:
                 self.category_review_index = json.load(f)
-            print(f"Loaded category review index with {len(self.category_review_index)} categories")
+            print(f" Loaded category review index with {len(self.category_review_index)} categories")
         except FileNotFoundError:
             print(f" Category review index not found at {category_review_path}")
-            print("   You'll need to build this index first using your data extraction pipeline")
-            # Create mock data for demonstration
-            self.category_review_index = self._create_mock_category_index()
+            print("   Run 'python BE/data_extraction/datatset.py' to build indexes first")
+            raise FileNotFoundError(f"Required category review index file not found: {category_review_path}")
         
         # Build Yelp user vectors from the category review index
         self.yelp_user_vectors = build_yelp_user_vectors(self.category_review_index, cat_to_index)
-        print(f"✅ Built vectors for {len(self.yelp_user_vectors)} Yelp users")
-
-    def _create_mock_business_index(self) -> Dict[str, List[str]]:
-        """Create mock business data for demonstration purposes."""
-        print("🔧 Creating mock business data...")
+        print(f" Built vectors for {len(self.yelp_user_vectors)} Yelp users")
         
-        # Convert FOOD_CATEGORIES set to list for sampling
-        categories_list = list(FOOD_CATEGORIES)
+        # Load business names
+        self.load_business_names()
         
-        mock_businesses = {}
-        business_names = [
-            "Tony's Pizza Palace", "Sakura Sushi", "El Mariachi Grill", "Burger Heaven",
-            "Golden Dragon Chinese", "Pasta Bella", "Spice Route Indian", "BBQ Kingdom",
-            "The French Bistro", "Taco Fiesta", "Noodle House", "Steakhouse Prime",
-            "Mediterranean Delight", "Coffee Corner Cafe", "Sweet Treats Bakery",
-            "Ocean's Bounty Seafood", "Punjab Palace", "Little Italy", "Seoul Kitchen",
-            "Bangkok Street Food", "German Beer Garden", "Cuban Flavors", "Vegan Garden",
-            "The Breakfast Club", "Midnight Diner", "Farm Fresh Market", "Artisan Chocolates",
-            "Ramen-Ya", "Falafel King", "Texas BBQ Pit", "Greek Taverna"
-        ]
+    def load_business_names(self):
+        """Load business names from the JSONL file."""
+        business_data_path = os.path.join("..", "data_extraction", "yelp_business_food_only.jsonl")
         
-        for i, name in enumerate(business_names):
-            bid = f"business_{i+1:03d}"
-            # Each business gets 1-4 random categories
-            num_cats = random.randint(1, 4)
-            business_categories = random.sample(categories_list, num_cats)
-            mock_businesses[bid] = business_categories
+        print(f"Loading business names from: {business_data_path}")
+        
+        count = 0
+        try:
+            with open(business_data_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    business = json.loads(line.strip())
+                    bid = business.get('business_id')
+                    name = business.get('name')
+                    
+                    if bid and name and bid in self.business_index:
+                        self.business_names[bid] = name
+                        count += 1
+                        
+            print(f" Loaded {count} business names")
             
-        return mock_businesses
+        except FileNotFoundError:
+            print(f" Business data file not found at {business_data_path}")
+            print("   Business names will show as IDs")
 
-    def _create_mock_category_index(self) -> Dict[str, Dict[str, int]]:
-        """Create mock category review data for demonstration."""
-        print("🔧 Creating mock category review data...")
-        
-        mock_index = {}
-        
-        # Create mock users for each category
-        for category in list(FOOD_CATEGORIES)[:20]:  # Use first 20 categories
-            mock_index[category] = {}
-            # Each category has 5-15 users with varying review counts
-            num_users = random.randint(5, 15)
-            for i in range(num_users):
-                user_id = f"yelp_user_{category.lower().replace(' ', '_')}_{i+1:02d}"
-                review_count = random.randint(1, 25)  # 1-25 reviews per category
-                mock_index[category][user_id] = review_count
-                
-        return mock_index
+
 
     def simulate_user_preferences(self, primary_categories: List[str], num_clicks: int = 20) -> List[str]:
         """
@@ -231,8 +215,8 @@ class RestaurantRecommendationSystem:
             print("-" * 50)
             
             for rank, (bid, score, categories) in enumerate(recommendations, 1):
-                # Create a display name from business ID
-                display_name = bid.replace('business_', 'Restaurant #')
+                # Use actual restaurant name if available, otherwise fallback to business ID
+                display_name = self.business_names.get(bid, f"Business {bid[:8]}...")
                 print(f"{rank:2d}. {display_name}")
                 print(f"    Score: {score:.4f}")
                 print(f"    Categories: {', '.join(categories[:3])}{'...' if len(categories) > 3 else ''}")
@@ -249,8 +233,8 @@ def main():
     print(" Food Recommendation System")
     print(" Simulating Users and Generating Recommendations")
     print("\n Expected Index Paths:")
-    print("   - Business Index: BE/data_extraction/index/complete_business_index.json")
-    print("   - Category Reviews: BE/data_extraction/category_reviews_index.json")
+    print("   - Business Index: BE/data_extraction/complete_business_index.json")
+    print("   - Category Reviews: BE/data_extraction/category_review_index.json")
     print("\n" + "=" * 70)
     
     # Initialize the recommendation system
