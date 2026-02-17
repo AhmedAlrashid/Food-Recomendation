@@ -3,10 +3,10 @@ from os import getcwd
 from buisiness_cleaning import FOOD_CATEGORIES
 
 # ---------------- CONFIG ----------------
-INPUT_PATH = r"BE\data_extraction\yelp_business_food_only.jsonl"
-INPUT_PATH_REVIEWS = "BE/data_extraction/Yelp-JSON/yelp_academic_dataset_review.json" 
-INPUT_PATH_BUSINESS_INDEX = "BE/data_extraction/index/complete_business_index.json"
-OUTPUT_DIR = r"BE\data_extraction"
+INPUT_PATH = "yelp_business_food_only.jsonl"
+INPUT_PATH_REVIEWS = "Yelp-JSON/yelp_academic_dataset_review.json" 
+INPUT_PATH_BUSINESS_INDEX = "complete_business_index.json"
+OUTPUT_DIR = "."
 BUFFER_SIZE = 15_000
 # ----------------------------------------
 

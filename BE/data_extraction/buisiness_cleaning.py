@@ -110,7 +110,7 @@ Buffer_size = 15_000
 categories = set()
 
 def getAllcategories():
-    with open(r"BE\data_extraction\Yelp-JSON\Yelp JSON\yelp_academic_dataset_business.json", "r", encoding="utf-8") as file:
+    with open(r"BE\data_extraction\Yelp-JSON\yelp_academic_dataset_business.json", "r", encoding="utf-8") as file:
         for line in file:
             business = json.loads(line)
 
@@ -132,7 +132,7 @@ def removeAnythingNotrelatedToResteraunts():
     businesses = []
     BATCH_SIZE = 15_000
 
-    input_path = r"BE\data_extraction\Yelp-JSON\Yelp JSON\yelp_academic_dataset_business.json"
+    input_path = r"BE\data_extraction\Yelp-JSON\yelp_academic_dataset_business.json"
     output_path = r"BE\data_extraction\yelp_business_food_only.jsonl"
 
     with open(input_path, "r", encoding="utf-8") as infile, \
@@ -172,4 +172,6 @@ def removeAnythingNotrelatedToResteraunts():
         for record in businesses:
             outfile.write(record)
 
-removeAnythingNotrelatedToResteraunts()
+if __name__ == "__main__":
+    # Only run the full extraction when executed as a script.
+    removeAnythingNotrelatedToResteraunts()
