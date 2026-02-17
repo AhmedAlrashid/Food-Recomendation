@@ -136,7 +136,7 @@ pip install pyjwt
 """
 
 # Pydantic models
-class UserInDB(BaseModel):
+class User(BaseModel):
     username: str
     hashed_password: str
 
