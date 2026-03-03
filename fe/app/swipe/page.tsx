@@ -1,15 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { FaHeart, FaHeartBroken } from "react-icons/fa";
+import { FaHeart, FaHeartBroken, FaStar } from "react-icons/fa";
 import image1 from "./hestu-dancing-with-koroks-in-tears-of-the-kingdom.avif";
 import image2 from "./IMG_9518.avif";
 import image3 from "./test3.jpg";
 
 const cards = [
-    { id: 1, name: "McDonalds", photoRef: image1 },
-    { id: 2, name: "Wendyyyss", photoRef: image2 },
-    { id: 3, name: "Chipotle", photoRef: image3 },
+    {
+        id: 1,
+        name: "McDonalds",
+        description: "Reviews for McDonalds lol",
+        photoRef: image1,
+        rating: 4.3,
+        location: "Irvine, CA",
+        cuisine: "Burger"
+    },
+    {
+        id: 2,
+        name: "Wendyyyss",
+        description: "Reviews for Wendys lol.",
+        photoRef: image2,
+        rating: 4.1,
+        location: "somewhere, CA",
+        cuisine: "Burger"
+    },
+    {
+        id: 3,
+        name: "Chipotle",
+        description: "Reviews for Chipotle lol.",
+        photoRef: image3,
+        rating: 4.7,
+        cuisine: "Bowls"
+    },
 ];
 
 export default function SwipePage() {
@@ -38,8 +61,26 @@ export default function SwipePage() {
             <div style={stackStyle}>
                 {nextCard && (
                     <div style={{ ...cardStyle, ...nextCardStyle }}>
-                        <h2>{nextCard.name}</h2>
+
                         <img src={nextCard.photoRef.src} style={imageStyle} />
+
+                        <div style={contentStyle}>
+
+                            <h2 style={titleStyle}>{nextCard.name}</h2>
+
+                            <div style={ratingStyle}>
+                                <span>
+                                    {nextCard.location ?? "Unknown"} • {nextCard.rating.toFixed(1)} • {nextCard.cuisine ?? ""}
+                                </span>
+                                <FaStar size={16} color="#f5c518" />
+                            </div>
+
+                            <p style={descriptionStyle}>
+                                {nextCard.description}
+                            </p>
+                            
+                        </div>
+
                     </div>
                 )}
 
@@ -50,24 +91,44 @@ export default function SwipePage() {
                         ...(direction === "right" ? swipeRight : {}),
                     }}
                 >
+
                     <button
                         onClick={() => handleSwipe("left")}
                         style={leftButtonStyle}
                     >
-                        <FaHeartBroken size={26} />
+                        <FaHeartBroken size={22} />
                     </button>
+
 
                     <button
                         onClick={() => handleSwipe("right")}
                         style={rightButtonStyle}
                     >
-                        <FaHeart size={26} />
+                        <FaHeart size={22} />
                     </button>
 
-                    <h2>{currentCard.name}</h2>
 
                     <img src={currentCard.photoRef.src} style={imageStyle} />
 
+                    <div style={contentStyle}>
+
+                        <h2 style={titleStyle}>{currentCard.name}</h2>
+
+                        <div style={ratingStyle}>
+                            <span>
+                                {currentCard.location ?? "Unknown"} • {currentCard.rating.toFixed(1)}
+                            </span>
+                            <FaStar size={16} color="#f5c518" />
+                            <span>
+                                • {currentCard.cuisine ?? ""}
+                            </span>
+                        </div>
+
+                        <p style={descriptionStyle}>
+                            {currentCard.description}
+                        </p>
+
+                    </div>
 
                 </div>
             </div>
@@ -76,19 +137,21 @@ export default function SwipePage() {
 }
 
 
-// `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${currentCard.photoRef}&key=API_KEY` link example
 
+
+// `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${currentCard.photoRef}&key=API_KEY` link example
 
 const containerStyle: React.CSSProperties = {
     height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    background: "#f5f5f5",
 };
 
 const stackStyle: React.CSSProperties = {
     position: "relative",
-    width: "1200px",
+    width: "1000px",
     height: "600px",
 };
 
@@ -109,11 +172,30 @@ const imageStyle: React.CSSProperties = {
     width: "100%",
     height: "65%",
     objectFit: "cover",
-    borderRadius: "20px",
+};
+
+const contentStyle: React.CSSProperties = {
+    padding: "24px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+};
+
+const titleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: "22px",
+    fontWeight: 600,
+};
+
+const descriptionStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: "15px",
+    color: "#555",
+    lineHeight: 1.6,
 };
 
 const nextCardStyle: React.CSSProperties = {
-    transform: "scale(0.95) translateY(20px)",
+    transform: "scale(0.95) translateY(25px)",
     opacity: 0.8,
 };
 
@@ -129,7 +211,7 @@ const swipeRight: React.CSSProperties = {
 
 const baseButtonStyle: React.CSSProperties = {
     position: "absolute",
-    top: "50%",
+    top: "45%",
     transform: "translateY(-50%)",
     zIndex: 10,
     border: "none",
@@ -139,21 +221,29 @@ const baseButtonStyle: React.CSSProperties = {
     cursor: "pointer",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
 };
 
 const leftButtonStyle: React.CSSProperties = {
     ...baseButtonStyle,
     left: "20px",
-    background: "rgba(200, 0, 0, 0.85)",
+    background: "rgba(220, 53, 69, 0.9)",
     color: "white",
-    opacity: 0.9
 };
 
 const rightButtonStyle: React.CSSProperties = {
     ...baseButtonStyle,
     right: "20px",
-    background: "rgba(0, 180, 0, 0.85)",
+    background: "rgba(40, 167, 69, 0.9)",
     color: "white",
-    opacity: 0.9
+};
+
+const ratingStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "16px",
+    fontWeight: 500,
+    color: "#333",
 };
