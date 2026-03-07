@@ -43,7 +43,6 @@ def places(
         maxprice: int = None, # $$$$ 0-4
         opennow: bool = True,
         limit: int = 20,
-        rankby: str = "prominence", # or distance from location but if so cannot specify radius
         page_token: str = None
     ):
     
@@ -66,9 +65,6 @@ def places(
     #         "pagetoken": page_token,
     #         }
     
-    if rankby not in ("prominence", "distance"):
-        raise HTTPException(400, detail="rankby must be 'prominence' or 'distance'")
-
 
     try:
         url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -83,11 +79,10 @@ def places(
             "minprice": minprice,
             "maxprice": maxprice,
             "opennow": opennow,
-            "rankby": rankby,
         }
 
 
-        if lat and lng and rankby != "distance":
+        if lat and lng:
             params["radius"] = min(radius, 50000)
 
         params = {k: v for k, v in params.items() if v is not None}
