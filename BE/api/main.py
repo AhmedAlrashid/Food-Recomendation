@@ -56,7 +56,6 @@ def places(
         maxprice: int = None, # $$$$ 0-4
         opennow: bool = True,
         limit: int = 20,
-        rankby: str = "prominence", # or distance from location but if so cannot specify radius
         page_token: str = None
     ):
     
@@ -79,9 +78,6 @@ def places(
     #         "pagetoken": page_token,
     #         }
     
-    if rankby not in ("prominence", "distance"):
-        raise HTTPException(400, detail="rankby must be 'prominence' or 'distance'")
-
 
     try:
         url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -96,11 +92,10 @@ def places(
             "minprice": minprice,
             "maxprice": maxprice,
             "opennow": opennow,
-            "rankby": rankby,
         }
 
 
-        if lat and lng and rankby != "distance":
+        if lat and lng:
             params["radius"] = min(radius, 50000)
 
         params = {k: v for k, v in params.items() if v is not None}
@@ -114,10 +109,40 @@ def places(
     if data.get("status") not in ("OK", "ZERO_RESULTS"):
         raise HTTPException(400, detail=data.get("error_message"))
     
-    results = data.get("results", [])
+    results = data.get("results", [])[:limit]
+
+    full_results = []
+
+    for place in results:
+        place_id = place.get("place_id")
+
+        try:
+            details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+            details_params = {
+                "place_id": place_id,
+                "fields": "website,formatted_phone_number,international_phone_number,reviews,opening_hours,url,price_level,editorial_summary",
+                "key": KEY
+            }
+
+            details_res = requests.get(details_url, params=details_params, timeout=5)
+            details_data = details_res.json().get("result", {})
+
+            place["website"] = details_data.get("website")
+            place["phone_number"] = details_data.get("formatted_phone_number")
+            place["international_phone_number"] = details_data.get("international_phone_number")
+            place["reviews"] = details_data.get("reviews")
+            place["opening_hours"] = details_data.get("opening_hours")
+            place["google_maps_url"] = details_data.get("url")
+            place["price_level"] = details_data.get("price_level")
+            place["editorial_summary"] = details_data.get("editorial_summary")
+
+        except Exception:
+            pass
+
+        full_results.append(place)
 
     return {
-        "results": results[:limit],
+        "results": full_results,
         "next_page_token": data.get("next_page_token"),
         "status": data.get("status"),
     }
