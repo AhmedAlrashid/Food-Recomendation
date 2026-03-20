@@ -1,4 +1,4 @@
-const dbUrl = process.env.BACKEND_CALL_API ?? "http://localhost:4000"
+const dbUrl = process.env.NEXT_PUBLIC_BACKEND_CALL_API ?? process.env.BACKEND_CALL_API ?? "http://localhost:8000"
 
 export async function getBackendRoot(): Promise<any> {
 	try {

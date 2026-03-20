@@ -6,7 +6,7 @@ BE/data_extraction/Yelp-JSON/
 
 # Ignore indexes folder inside data_extraction
 BE/data_extraction/index/
-
+BE/data_extraction/*.json
 # Python cache and bytecode
 __pycache__/
 *.py[cod]
