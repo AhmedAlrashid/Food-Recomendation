@@ -1,0 +1,55 @@
+### Tracking API Tests
+@baseUrl = http://localhost:8000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.YOUR_TOKEN_HERE
+
+### 1. Record a user click
+POST {{baseUrl}}/tracking/click
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "business_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+  "lat": 37.7749,
+  "lng": -122.4194
+}
+
+###
+
+### 2. Record user location (typically on login)
+POST {{baseUrl}}/tracking/location
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "lat": 37.7749,
+  "lng": -122.4194,
+  "city": "San Francisco",
+  "state": "California", 
+  "country": "USA"
+}
+
+###
+
+### 3. Get user's click history
+GET {{baseUrl}}/tracking/clicks?limit=10&skip=0
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Get user's location history
+GET {{baseUrl}}/tracking/locations?limit=10&skip=0
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Get clicks for specific business
+GET {{baseUrl}}/tracking/clicks/business/ChIJN1t_tDeuEmsRUsoyG83frY4
+Authorization: Bearer {{token}}
+
+###
+
+### 6. Get user's current city (from latest location)
+GET {{baseUrl}}/tracking/current-city
+Authorization: Bearer {{token}}
+
+###

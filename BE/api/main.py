@@ -1,208 +1,77 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+"""
+Main FastAPI application
+"""
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-import requests, os, sys
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
-from typing import Dict
 
-# Get the current directory of main.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# Get the parent directory (the 'BE' folder)
-parent_dir = os.path.dirname(current_dir)
-# Add 'BE' to the system path so Python can find 'Login'
-sys.path.append(parent_dir)
-
-from Login.auth import create_access_token, verify_password, get_password_hash, verify_token
-
-
-# Create FastAPI app instance
-app = FastAPI()
-
-# Configure CORS for local frontend dev
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from .auth_routes import router as auth_router
+from .places_routes import router as places_router
+from .tracking_routes import router as tracking_router
+from .recommendation_routes import router as recommendation_router, load_indexes
 
 load_dotenv()
-KEY = os.getenv("GOOGLE_API_KEY")
-
-if not KEY:
-    raise RuntimeError("Google API Key needs to be set ")
 
 
-# Define a simple GET endpoint
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load recommendation indexes once when the server starts
+    try:
+        load_indexes()
+    except Exception as e:
+        print(f"Warning: Could not load recommendation indexes: {e}")
+    yield
+    # Nothing to clean up
+
+
+app = FastAPI(
+    title="Food Recommendation API",
+    description="A FastAPI application for food recommendations with Google Places integration",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+app.include_router(auth_router)
+app.include_router(places_router)
+app.include_router(tracking_router)
+app.include_router(recommendation_router)
+
+
 @app.get("/")
 def read_root():
-    return {"message": "Hello World"}
-
-@app.get("/places")
-def places(
-        # Name, city, cuisine all handled by Google as one text query
-        # name: str = None,
-        # city: str = None,
-        # cuisine: str = None
-        query: str = "restaurants",
-        place_type: str = None, #restaurant, cafe, bakery
-        keyword: str = None, #cuisines like sushi and vegan
-        lat: float = None,
-        lng: float = None,
-        radius: int = 16000, #is in meters
-        minprice: int = None, # $ 0-4
-        maxprice: int = None, # $$$$ 0-4
-        opennow: bool = True,
-        limit: int = 20,
-        page_token: str = None
-    ):
-    
-    # Below was extra I tried if we need strict location filtering
-    # use_nearby_search = lat is not None and lng is not None
-
-    # if use_nearby_search: #doesn't allow query
-    #     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    #     params = {
-    #         "location": f"{lat},{lng}" if lat and lng else None,
-    #         "radius": min(radius, 50000), #google will return invalid request if too far
-    #         "keyword": keyword,
-    #         "type": place_type,
-    #         "key": KEY,
-    #         "keyword": keyword,
-    #         "minprice": minprice,
-    #         "maxprice": maxprice,
-    #         "opennow": opennow,
-    #         "rankby": rankby, 
-    #         "pagetoken": page_token,
-    #         }
-    
-
-    try:
-        url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-        params = {
-            "query": query,
-            "key": KEY,
-            # below are optional
-            "pagetoken": page_token,
-            "location": f"{lat},{lng}" if lat and lng else None,
-            "type": place_type,
-            "keyword": keyword,
-            "minprice": minprice,
-            "maxprice": maxprice,
-            "opennow": opennow,
-        }
-
-
-        if lat and lng:
-            params["radius"] = min(radius, 50000)
-
-        params = {k: v for k, v in params.items() if v is not None}
-
-        res = requests.get(url, params=params, timeout=5)
-        data = res.json()
-    except Exception as e:
-        raise HTTPException(500, detail=str(e))
-
-
-    if data.get("status") not in ("OK", "ZERO_RESULTS"):
-        raise HTTPException(400, detail=data.get("error_message"))
-    
-    results = data.get("results", [])[:limit]
-
-    full_results = []
-
-    for place in results:
-        place_id = place.get("place_id")
-
-        try:
-            details_url = "https://maps.googleapis.com/maps/api/place/details/json"
-            details_params = {
-                "place_id": place_id,
-                "fields": "website,formatted_phone_number,international_phone_number,reviews,opening_hours,url,price_level,editorial_summary",
-                "key": KEY
-            }
-
-            details_res = requests.get(details_url, params=details_params, timeout=5)
-            details_data = details_res.json().get("result", {})
-
-            place["website"] = details_data.get("website")
-            place["phone_number"] = details_data.get("formatted_phone_number")
-            place["international_phone_number"] = details_data.get("international_phone_number")
-            place["reviews"] = details_data.get("reviews")
-            place["opening_hours"] = details_data.get("opening_hours")
-            place["google_maps_url"] = details_data.get("url")
-            place["price_level"] = details_data.get("price_level")
-            place["editorial_summary"] = details_data.get("editorial_summary")
-
-        except Exception:
-            pass
-
-        full_results.append(place)
-
     return {
-        "results": full_results,
-        "next_page_token": data.get("next_page_token"),
-        "status": data.get("status"),
+        "message": "Food Recommendation API",
+        "version": "1.0.0",
+        "status":  "running",
+        "endpoints": {
+            "authentication": "/auth",
+            "places":         "/places",
+            "docs":           "/docs",
+            "redoc":          "/redoc",
+        },
     }
 
-#python -m uvicorn main:app --reload
 
-# Login ----------------------------------------------------------------------
-
-"""
-Dependencies needed:
-pip install python-multipart
-pip install "bcrypt==3.2.2" 
-pip install passlib 
-pip install "python-jose[cryptography]"
-pip install pyjwt   
-"""
-
-# Pydantic models
-class User(BaseModel):
-    username: str
-    hashed_password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-# Simulate a user database
-fake_users_db: Dict[str, UserInDB] = {
-    "testuser": UserInDB(username="testuser", hashed_password=get_password_hash("password123"))
-}
-
-# OAuth2PasswordBearer is used to extract the token from the Authorization header
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # "login" is the URL of our login endpoint
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    username = verify_token(token, credentials_exception)
-    # Lookup user from real db instead of mock fake_users_db
-    if username not in fake_users_db: # <------------- Change to real db later
-         raise credentials_exception
-    return fake_users_db[username]
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "message": "API is running successfully"}
 
 
-@app.post("/login", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user_in_db = fake_users_db.get(form_data.username) # <---------- Change to real db later
-    if not user_in_db or not verify_password(form_data.password, user_in_db.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token = create_access_token(data={"sub": user_in_db.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/users/me")
-async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
-    # This endpoint is protected. 'current_user' is only available if a valid token is provided
-    return {"username": current_user.username, "message": "You have access to a protected route!"}
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

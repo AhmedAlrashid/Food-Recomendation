@@ -31,10 +31,22 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def verify_token(token: str, credentials_exception):
     try:
+        print(f"Verifying token: {token[:20]}...")  # Debug: show first 20 chars
+        print(f"Using SECRET_KEY: {SECRET_KEY[:10]}...")  # Debug: show first 10 chars of secret
+        
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"Token payload: {payload}")  # Debug: show decoded payload
+        
         username: str = payload.get("sub")
         if username is None:
+            print("No 'sub' field in token payload")  # Debug
             raise credentials_exception
+            
+        print(f"Extracted username: {username}")  # Debug
         return username # lookup username from db here if needed later on
-    except JWTError:
+    except JWTError as e:
+        print(f"JWT Error: {e}")  # Debug: show actual JWT error
+        raise credentials_exception
+    except Exception as e:
+        print(f"General error in verify_token: {e}")  # Debug: catch any other errors
         raise credentials_exception

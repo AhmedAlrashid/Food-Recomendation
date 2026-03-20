@@ -4,10 +4,13 @@ import random
 from typing import Dict, List, Tuple
 import sys
 import os
+import asyncio
+import uuid
 
 # Add paths for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_extraction")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "api")))
 
 from vectorize import (
     cat_to_index,
@@ -19,6 +22,11 @@ from vectorize import (
     build_restaurant_vector
 )
 from buisiness_cleaning import FOOD_CATEGORIES
+
+# Database imports
+from database import get_async_db
+from models import User, UserClick
+from sqlalchemy import select
 
 class RestaurantRecommendationSystem:
     def __init__(self):
@@ -92,42 +100,41 @@ class RestaurantRecommendationSystem:
 
 
 
-    def simulate_user_preferences(self, primary_categories: List[str], num_clicks: int = 20) -> List[str]:
+    async def get_user_clicks_from_database(self, user_id: str, limit: int = 100) -> List[str]:
         """
-        Simulate a user's clicking behavior based on their preferences.
+        Get real user clicks from database instead of simulating them.
         
         Args:
-            primary_categories: List of categories the user prefers
-            num_clicks: Number of restaurants the user has clicked on
+            user_id: UUID of the user
+            limit: Maximum number of recent clicks to retrieve
             
         Returns:
-            List of business IDs representing user's click history
+            List of business IDs the user has actually clicked
         """
-        user_clicks = []
-        
-        # Find businesses that match the user's preferred categories
-        matching_businesses = []
-        for bid, categories in self.business_index.items():
-            if any(cat in categories for cat in primary_categories):
-                # Add business multiple times if it matches multiple preferences
-                weight = sum(1 for cat in categories if cat in primary_categories)
-                matching_businesses.extend([bid] * weight)
-        
-        if not matching_businesses:
-            print(f" No businesses found for categories {primary_categories}")
-            return []
-        
-        # Simulate clicks with some preference weighting
-        for _ in range(num_clicks):
-            # 80% chance to click preferred categories, 20% chance for exploration
-            if random.random() < 0.8 and matching_businesses:
-                clicked_business = random.choice(matching_businesses)
-            else:
-                clicked_business = random.choice(list(self.business_index.keys()))
-            
-            user_clicks.append(clicked_business)
-        
-        return user_clicks
+        async for db in get_async_db():
+            try:
+                result = await db.execute(
+                    select(UserClick.business_id)
+                    .where(UserClick.user_id == user_id)
+                    .order_by(UserClick.clicked_at.desc())
+                    .limit(limit)
+                )
+                clicks = result.scalars().all()
+                return [str(click) for click in clicks]
+            finally:
+                await db.close()
+
+    async def get_all_users_with_clicks(self) -> List[str]:
+        """Get all user IDs that have click history."""
+        async for db in get_async_db():
+            try:
+                result = await db.execute(
+                    select(UserClick.user_id).distinct()
+                )
+                user_ids = result.scalars().all()
+                return [str(uid) for uid in user_ids]
+            finally:
+                await db.close()
 
     def get_recommendations_for_user(self, user_clicks: List[str], top_k: int = 10) -> List[Tuple[str, float, List[str]]]:
         """
@@ -192,23 +199,34 @@ class RestaurantRecommendationSystem:
         
         return user_profiles
 
-    def run_simulation(self):
-        """Run the complete user simulation and recommendation system."""
-        print(" Starting Restaurant Recommendation Simulation")
+    async def run_with_real_users(self):
+        """Run the recommendation system with real users from the database."""
+        print(" Starting Restaurant Recommendation with Real Users")
         print("=" * 60)
         
-        user_profiles = self.create_diverse_user_profiles()
+        # Get users with click history from database
+        users_with_clicks = await self.get_all_users_with_clicks()
         
-        for i, profile in enumerate(user_profiles, 1):
-            print(f"\n USER {i}: {profile['name']}")
-            print(f" {profile['description']}")
-            print(f" Preferred Categories: {', '.join(profile['preferences'])}")
+        if not users_with_clicks:
+            print("⚠️  No users with click history found in database")
+            print("   Add some click data first using the /tracking/click API")
+            return
             
-            # Simulate user clicks
-            user_clicks = self.simulate_user_preferences(profile['preferences'], num_clicks=25)
-            print(f"📊 Simulated {len(user_clicks)} restaurant visits")
+        print(f"📊 Found {len(users_with_clicks)} users with click history")
+        
+        # Process first few users (limit for demo)
+        for i, user_id in enumerate(users_with_clicks[:5], 1):
+            print(f"\n USER {i}: {user_id}")
             
-            # Get recommendations
+            # Get real user clicks from database
+            user_clicks = await self.get_user_clicks_from_database(user_id)
+            print(f"📊 User has {len(user_clicks)} restaurant clicks")
+            
+            if not user_clicks:
+                print("   No clicks found for this user")
+                continue
+            
+            # Use your existing algorithm to get recommendations
             recommendations = self.get_recommendations_for_user(user_clicks, top_k=10)
             
             print(f"\n TOP 10 RESTAURANT RECOMMENDATIONS:")
@@ -227,28 +245,88 @@ class RestaurantRecommendationSystem:
             
             print("=" * 60)
 
-def main():
-    """Main function to run the restaurant recommendation system."""
+async def main():
+    """Main function to run the restaurant recommendation system with real database users."""
     
     print(" Food Recommendation System")
-    print(" Simulating Users and Generating Recommendations")
+    print(" Using Real User Data from Database")
     print("\n Expected Index Paths:")
     print("   - Business Index: BE/data_extraction/complete_business_index.json")
     print("   - Category Reviews: BE/data_extraction/category_review_index.json")
     print("\n" + "=" * 70)
     
-    # Initialize the recommendation system
-    rec_system = RestaurantRecommendationSystem()
-    
-    # Run the simulation
-    rec_system.run_simulation()
-     
-    print("\n Simulation Complete!")
-    print("\n Summary:")
-    print(f"   - Total Businesses in Index: {len(rec_system.business_index)}")
-    print(f"   - Total Food Categories: {len(FOOD_CATEGORIES)}")
-    print(f"   - Yelp Users with Vectors: {len(rec_system.yelp_user_vectors)}")
-    print(f"   - User Profiles Simulated: 4")
+    try:
+        # Initialize the recommendation system
+        rec_system = RestaurantRecommendationSystem()
+        
+        # Run with real users from database
+        await rec_system.run_with_real_users()
+         
+        print("\n System Complete!")
+        print("\n Summary:")
+        print(f"   - Total Businesses in Index: {len(rec_system.business_index)}")
+        print(f"   - Total Food Categories: {len(FOOD_CATEGORIES)}")
+        print(f"   - Yelp Users with Vectors: {len(rec_system.yelp_user_vectors)}")
+        print(f"   - Using Real User Click Data from Database")
+        
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        print("   Make sure your database is running and contains user click data")
 
-if __name__ == "__main__":
-    main()
+# API Integration Function
+async def get_recommendations_for_user_api(user_id: str, top_k: int = 10) -> Dict:
+    """
+    API function to get recommendations for a specific user.
+    Uses your existing algorithm with real database data.
+    
+    Args:
+        user_id: UUID string of the user
+        top_k: Number of recommendations to return
+        
+    Returns:
+        Dictionary with recommendations in API format
+    """
+    try:
+        # Initialize your recommendation system
+        rec_system = RestaurantRecommendationSystem()
+        
+        # Get user's click history from database
+        user_clicks = await rec_system.get_user_clicks_from_database(user_id)
+        
+        if not user_clicks:
+            return {
+                "success": False,
+                "message": "No click history found for user",
+                "recommendations": []
+            }
+        
+        # Use your existing algorithm
+        recommendations = rec_system.get_recommendations_for_user(user_clicks, top_k)
+        
+        # Format for API response
+        formatted_recs = []
+        for business_id, score, categories in recommendations:
+            business_name = rec_system.business_names.get(business_id, f"Restaurant {business_id[:8]}...")
+            formatted_recs.append({
+                "business_id": business_id,
+                "name": business_name,
+                "score": round(float(score), 4),
+                "categories": categories,
+                "reason": f"Based on your preferences for {', '.join(categories[:2])}"
+            })
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "total_recommendations": len(formatted_recs),
+            "recommendations": formatted_recs,
+            "user_click_count": len(user_clicks)
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "recommendations": []
+        }
+

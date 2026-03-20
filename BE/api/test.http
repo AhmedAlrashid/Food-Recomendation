@@ -1,0 +1,223 @@
+# Food Recommendation API Test Endpoints
+# Base URL: http://localhost:8000
+
+### Variables for testing
+@baseUrl = http://localhost:8000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhaG1lZDEyMyIsImV4cCI6MTc3Mzk1MzU5N30.5LETQjB_iNwi1LiNXaISzg_LsFwAlLRr-iYVOuDeVps
+
+# ================================
+# BASIC HEALTH CHECKS
+# ================================
+
+### Test root endpoint
+GET {{baseUrl}}/
+
+### Test health endpoint  
+GET {{baseUrl}}/health
+
+# ================================
+# AUTHENTICATION ENDPOINTS
+# ================================
+
+### Register ahmed123 user (to match your JWT token)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "username": "ahmed123",
+    "password": "password123",
+    "email": "ahmed@example.com"
+}
+
+### Register a new user
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "username": "testuser123",
+    "password": "testpass123",
+    "email": "test@example.com"
+}
+
+### Login user (save token for other requests)
+# @name login_response
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=ahmed123&password=testpass123
+
+### Get current user info (requires authentication)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### Update user profile
+PUT {{baseUrl}}/auth/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "username": "testuser123",
+    "email": "newemail@example.com"
+}
+
+### Create user preferences
+POST {{baseUrl}}/auth/preferences
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "dietary_restrictions": ["vegetarian"],
+    "cuisine_preferences": ["italian", "mexican"],
+    "price_range": "$$",
+    "distance_preference": 5.0
+}
+
+### Get user preferences
+GET {{baseUrl}}/auth/preferences
+Authorization: Bearer {{token}}
+
+### Debug JWT token validation
+GET {{baseUrl}}/auth/debug-token
+Authorization: Bearer {{token}}
+
+### Logout user
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}
+
+# ================================
+# PLACES ENDPOINTS
+# ================================
+
+### Search for restaurants
+GET {{baseUrl}}/places/search?location=New York, NY&radius=5000&keyword=pizza
+Authorization: Bearer {{token}}
+
+### Search restaurants with more parameters
+GET {{baseUrl}}/places/search?location=40.7128,-74.0060&radius=1000&type=restaurant&keyword=sushi&price_level=2
+Authorization: Bearer {{token}}
+
+### Add restaurant to favorites
+POST {{baseUrl}}/places/favorites
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+    "name": "Test Restaurant",
+    "address": "123 Test St, Test City",
+    "rating": 4.5,
+    "price_level": 2
+}
+
+### Get user's favorite restaurants
+GET {{baseUrl}}/places/favorites
+Authorization: Bearer {{token}}
+
+### Remove restaurant from favorites
+DELETE {{baseUrl}}/places/favorites/ChIJN1t_tDeuEmsRUsoyG83frY4
+Authorization: Bearer {{token}}
+
+# ================================
+# TRACKING ENDPOINTS
+# ================================
+
+### Record restaurant click
+POST {{baseUrl}}/tracking/click
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "business_id": "test-restaurant-id-123",
+    "business_name": "Test Restaurant",
+    "click_type": "view_details"
+}
+
+### Record user location
+POST {{baseUrl}}/tracking/location
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "city": "New York",
+    "state": "NY",
+    "country": "USA"
+}
+
+### Get user's click history
+GET {{baseUrl}}/tracking/clicks
+Authorization: Bearer {{token}}
+
+### Get user's location history
+GET {{baseUrl}}/tracking/locations
+Authorization: Bearer {{token}}
+
+### Get clicks for specific business
+GET {{baseUrl}}/tracking/clicks/business/test-restaurant-id-123
+Authorization: Bearer {{token}}
+
+### Get user's current city
+GET {{baseUrl}}/tracking/current-city
+Authorization: Bearer {{token}}
+
+# ================================
+# RECOMMENDATION ENDPOINTS
+# ================================
+
+### Test recommendations health
+GET {{baseUrl}}/recommendations/health
+
+### Get general recommendations
+GET {{baseUrl}}/recommendations/
+
+### Get recommendations for specific user
+GET {{baseUrl}}/recommendations/user/1
+
+### Get top 20 restaurants
+GET {{baseUrl}}/recommendations/top20
+
+### Get random restaurant recommendations
+GET {{baseUrl}}/recommendations/random?count=5
+
+### Get random recommendations with location
+GET {{baseUrl}}/recommendations/random?count=10&lat=40.7128&lng=-74.0060
+
+# ================================
+# ERROR TESTING
+# ================================
+
+### Test invalid endpoint
+GET {{baseUrl}}/invalid-endpoint
+
+### Test unauthorized access
+GET {{baseUrl}}/auth/me
+
+### Test invalid login
+POST {{baseUrl}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=invalid&password=invalid
+
+### Test invalid registration
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "username": "",
+    "password": "123"
+}
+
+# ================================
+# CORS TEST
+# ================================
+
+### Test CORS preflight
+OPTIONS {{baseUrl}}/auth/login
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: Content-Type
+
+### Test with different origin
+GET {{baseUrl}}/health
+Origin: http://localhost:3001
